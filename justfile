@@ -1,3 +1,11 @@
+install: uninstall
+  cp next-runner.desktop ~/.local/share/krunner/dbusplugins/next-runner.desktop 
+  cp next-runner.service ~/.local/share/dbus-1/services/next-runner.service
+
+uninstall:
+  rm -rf ~/.local/share/krunner/dbusplugins/next-runner.desktop 
+  rm -rf ~/.local/share/dbus-1/services/next-runner.service
+  kquitapp5 krunner
 
 watch-and-kill:
   watchexec -w . -e py -- just kill

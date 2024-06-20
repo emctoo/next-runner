@@ -1,17 +1,17 @@
 [Desktop Entry]
-Name=xg
+Name=next
 Comment=Random commands
 X-KDE-ServiceTypes=Plasma/Runner
 Type=Service
 Icon=virt-manager
 
 X-KDE-PluginInfo-Author=Xiaogang
-X-KDE-PluginInfo-Website=https://myctl.space/my-runner
-X-KDE-PluginInfo-Name=xg
+X-KDE-PluginInfo-Website=https://simple-is-better.xyz/next-runner
+X-KDE-PluginInfo-Name=next
 X-KDE-PluginInfo-Version=0.0.1
 X-KDE-PluginInfo-License=GPL-3.0
 X-KDE-PluginInfo-EnabledByDefault=true
 
 X-Plasma-API=DBus
-X-Plasma-DBusRunner-Service=space.myctl.my-runner
-X-Plasma-DBusRunner-Path=/xg
+X-Plasma-DBusRunner-Service=xyz.simple-is-better.next-runner
+X-Plasma-DBusRunner-Path=/next-runner

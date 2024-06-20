@@ -1,4 +1,0 @@
-[D-BUS Service]
-Name=space.myctl.my-runner
-WorkingDirectory=~/krunner/xg
-Exec=/usr/bin/python3 /home/maple/krunner/xg/runner.py

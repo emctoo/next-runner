@@ -10,19 +10,20 @@ krunner5 package
 methods: /usr/share/dbus-1/interfaces/kf5_org.kde.krunner1.xml
 """
 
-from datetime import datetime
+import logging
+import subprocess
+
+# arch python-dbus
+# dbus-python=1.3.2 python-dbus-command=1.3.2
+# optional: python-gobject
 import dbus
 import dbus.service
-import libvirt
-import subprocess
 from dbus.mainloop.glib import DBusGMainLoop
-from gi.repository import GLib
-
-import logging
+from gi.repository import GObject, GLib
 
 logging.basicConfig(
     level=logging.INFO,
-    filename="/tmp/x-runner.log",
+    filename="/tmp/next-runner.log",
     format="%(asctime)s - %(filename)s - %(lineno)s - %(message)s",
 )
 log = logging.getLogger(__name__)
@@ -32,9 +33,9 @@ log.info(f'{"*" * 20} starting the runner ...')
 
 DBusGMainLoop(set_as_default=True)
 
-OBJPATH = "/xg"
+OBJPATH = "/next"
 IFACE = "org.kde.krunner1"
-SERVICE = "space.myctl.my-runner"
+SERVICE = "xyz.simple-is-better.next"
 
 VMM_PATH = "/usr/share/virt-manager/"
 ICONS_PATH = VMM_PATH + "icons/hicolor/22x22/status/"
@@ -92,6 +93,17 @@ class Runner(dbus.service.Object):
         log.info("matches by (ID, Text, IconName, Type, Relevance, Properties)")
 
         results = []
+        if query.startswith("al"):
+            results += [
+                (
+                    "alacritty",
+                    "Alacritty",
+                    "utilities-terminal",
+                    100,
+                    1,
+                    {"subtext": "Alacritty Terminal"},
+                )
+            ]
         if query.startswith("wez") or "color" in query:
             log.info("wez theme updating request")
             results += [
@@ -167,7 +179,7 @@ class Runner(dbus.service.Object):
         # match_id is the ID for `Match` record
         # action_id: The action ID to run. For the default action this will be empty, the ID from `Actions` method
         log.info(
-            "run, received a Run command, match_id: %s, action_id: %s, %s, %s",
+            "run, received a Run command, match_id: %s, action_id: %s, args: %s, kwargs: %s",
             match_id,
             action_id,
             args,
@@ -177,15 +189,114 @@ class Runner(dbus.service.Object):
             subprocess.run(["touch", "-h", "/home/maple/.config/wezterm/wezterm.lua"])
             log.info("touched")
 
-        if match_id.startswith("alacritty:"):
-            hostname = match_id.split(":")[1]
-            subprocess.run(["alacritty", "-e", "ssh", hostname])
-            log.info("alacritty ssh to %s", hostname)
+        if match_id == "alacritty":
+            values = match_id.split(":", maxsplit=1)
+            log.info("get values: %s", values)
+
+            hostname = "ss-dev"
+            command, args = "alacritty", ["--command", "ssh", hostname]
+            if self.launch_application(command, args):
+                self.send_desktop_notification(
+                    "Alacritty 已启动", f"已连接到 {hostname}"
+                )
+
+    def is_dbus_service_available(self, service_name):
+        try:
+            bus = dbus.SessionBus()
+            bus.get_name_owner(service_name)
+            return True
+        except dbus.exceptions.DBusException:
+            return False
+
+    def launch_application_via_dbus(self, app_name: str, args: list):
+        """通过 DBus 启动应用程序"""
+        log.info(f"正在通过 DBus 启动 {app_name}，参数：{args}")
+
+        try:
+            bus = dbus.SessionBus()
+            obj = bus.get_object("org.freedesktop.DBus", "/org/freedesktop/DBus")
+            interface = dbus.Interface(obj, "org.freedesktop.DBus")
+
+            app_dbus_name = f"org.freedesktop.Application.{app_name}"
+            if not self.is_dbus_service_available(app_dbus_name):
+                raise dbus.exceptions.DBusException("DBus service not available")
+
+            app_dbus_name = interface.GetNameOwner(app_dbus_name)
+            app_obj = bus.get_object(app_dbus_name, "/org/freedesktop/Application")
+            app_interface = dbus.Interface(app_obj, "org.freedesktop.Application")
+
+            app_interface.Activate(
+                dbus.Dictionary(
+                    {"desktop-startup-id": "", "args": dbus.Array(args, signature="s")},
+                    signature="sv",
+                )
+            )
+
+            log.info(f"{app_name} 成功通过 DBus 启动")
+            return True
+        except dbus.exceptions.DBusException as e:
+            log.error(f"通过 DBus 启动 {app_name} 失败: {str(e)}")
+            return False
+
+    def launch_application_via_subprocess(self, app_name: str, args: list):
+        """使用 subprocess 启动应用程序"""
+        log.info(f"正在通过 subprocess 启动 {app_name}，参数：{args}")
+        try:
+            full_command = [app_name] + args
+            subprocess.Popen(
+                full_command,
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            log.info(f"{app_name} 成功通过 subprocess 启动")
+            self.send_desktop_notification(f"{app_name} 已启动", f"参数：{args}")
+            return True
+        except Exception as e:
+            log.error(f"通过 subprocess 启动 {app_name} 失败: {str(e)}")
+            return False
+
+    def launch_application(self, app_name: str, args: list):
+        """尝试通过 DBus 启动应用程序，如果失败则使用 subprocess"""
+        if not self.launch_application_via_dbus(app_name, args):
+            return self.launch_application_via_subprocess(app_name, args)
+        return True
 
     @dbus.service.method(IFACE)
     def Teardown(self, *args, **kwargs):
         # this session is done
         log.info("done, %s, %s", args, kwargs)
+
+    def send_desktop_notification(self, summary: str, body: str, icon: str = ""):
+        """
+        使用 DBus 发送桌面通知
+
+        :param summary: 通知的标题
+        :param body: 通知的详细内容
+        :param icon: 通知的图标（可选）
+        """
+        try:
+            bus = dbus.SessionBus()
+            notify_object = bus.get_object(
+                "org.freedesktop.Notifications", "/org/freedesktop/Notifications"
+            )
+            notify_interface = dbus.Interface(
+                notify_object, "org.freedesktop.Notifications"
+            )
+
+            notify_interface.Notify(
+                "Next Runner",  # 应用名称
+                0,  # 替换 ID （0 表示新通知）
+                icon,  # 图标
+                summary,  # 标题
+                body,  # 内容
+                [],  # 动作
+                {},  # 提示
+                -1,  # 超时（-1 表示使用系统默认值）
+            )
+            log.info(f"已发送桌面通知: {summary}")
+        except dbus.exceptions.DBusException as e:
+            log.error(f"发送桌面通知失败: {str(e)}")
 
 
 runner = Runner()

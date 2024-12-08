@@ -1,4 +1,4 @@
-default:
+_default:
   just --list
 
 # restart krunner service
@@ -20,7 +20,8 @@ install: uninstall
   just restart-krunner
 
   # restart the dbus sevice by killing it
-  just kill
+  # just kill
+  just kill-rs-proc
 
 # uninstall service
 uninstall:
@@ -48,7 +49,23 @@ get-running:
 _not-working:
   # procs -c disable --no-header runner.py | awk -F' ' '{print $1}'
   # procs -c disable --no-header runner.py
- 
+
+get-rs-proc:
+  @ps -ef | rg -i -e 'debug\/my\-runner' | awk -F' ' '{print $2}'
+
+kill-rs-proc:
+  #!/usr/bin/env bash
+  PID=$(just get-rs-proc)
+  if [[ -z $PID ]]; then
+    echo "process not found"
+    exit 0
+  fi
+
+  printf "killing ${PID} ...\n"
+  kill -KILL $PID
+  printf "done\n"
+  # notify-send 'Next killed!' "Process $PID killed" --icon=dialog-information
+
 kill:
   #!/usr/bin/env bash
 
@@ -59,4 +76,7 @@ kill:
     kill $PID
     notify-send 'Next killed!' "process $PID killed" --icon=dialog-information
   fi
+
+
+# busctl --user call org.zbus.MyGreeter /org/zbus/MyGreeter org.zbus.MyGreeter1 SayHello s "Maria"
 

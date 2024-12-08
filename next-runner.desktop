@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=next
+Name=Next
 Comment=Random commands
 X-KDE-ServiceTypes=Plasma/Runner
 Type=Service
@@ -7,7 +7,7 @@ Icon=virt-manager
 
 X-KDE-PluginInfo-Author=Xiaogang
 X-KDE-PluginInfo-Website=https://simple-is-better.xyz/next
-X-KDE-PluginInfo-Name=next
+X-KDE-PluginInfo-Name=Next
 X-KDE-PluginInfo-Version=0.0.1
 X-KDE-PluginInfo-License=GPL-3.0
 X-KDE-PluginInfo-EnabledByDefault=true

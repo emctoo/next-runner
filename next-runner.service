@@ -1,4 +1,5 @@
 [D-BUS Service]
 Name=xyz.simple-is-better.next
 WorkingDirectory=/home/maple/next-runner
-Exec=/usr/bin/python3 /home/maple/next-runner/runner.py
+# Exec=/usr/bin/python3 /home/maple/next-runner/runner.py
+Exec=/mnt/1t/repos/next-runner/target/debug/my-runner
